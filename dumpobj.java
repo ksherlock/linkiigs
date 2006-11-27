@@ -17,9 +17,26 @@ public class dumpobj
      */
     public static void main(String[] args)
     {    
+       
+       boolean fHeaderOnly = false;
+       GetOpt go = new GetOpt(args, "h");
+       int c;
+       
+       while ((c = go.Next()) != -1)
+       {
+           switch (c)
+           {
+           case 'h':
+               fHeaderOnly = true;
+               break;
+           }
+       }
+       
+       args = go.CommandLine();
+           
        for (int i = 0; i < args.length; i++)
        {
-           File f= new File(args[i]);
+           File f = new File(args[i]);
 
            ArrayList<OMF_Segment> segments = OMF.LoadFile(f);
            if (segments == null)
@@ -31,7 +48,7 @@ public class dumpobj
            {
                OMF_Segment segment = iter.next();
                dumpheader(segment);
-               dumpbody(segment);
+               if (!fHeaderOnly) dumpbody(segment);
            }
        }
 
@@ -124,6 +141,7 @@ public class dumpobj
                 System.out.printf("\t$%1$04x", op.CodeSize());
                 dumphex( ((OMF_Const)op).Data(), op.CodeSize());
                 break;
+                
             case OMF.OMF_ENTRY:
                 {
                     OMF_Entry e = (OMF_Entry)op;
@@ -132,6 +150,7 @@ public class dumpobj
                     
                 }
                 break;
+                
             case OMF.OMF_SUPER:
                 {
                     OMF_Super s = (OMF_Super)op;
@@ -139,6 +158,7 @@ public class dumpobj
                     dumphex(s.Data(), s.Length() - 1);
                 }
                 break;
+                
             case OMF.OMF_EXPR:
             case OMF.OMF_BKEXPR:
             case OMF.OMF_LEXPR:
@@ -146,6 +166,22 @@ public class dumpobj
                 {
                     OMF_Expr e = (OMF_Expr)op;
                     dumpexpr(e.Expression());
+                }
+                break;
+                
+                case OMF.OMF_RELEXPR:
+                {
+                    OMF_RelExpr e = (OMF_RelExpr)op;
+                    dumpexpr(e.Expression());                   
+                }
+                break;
+                
+            case OMF.OMF_GEQU:
+            case OMF.OMF_EQU:
+                {
+                    OMF_Equ eq = (OMF_Equ)op;
+                    System.out.printf("\t%1$s", eq.toString());
+                    dumpexpr(eq.Expression());
                 }
                 break;
                 
@@ -306,7 +342,7 @@ public class dumpobj
        "/",
        "%",
        "-",
-       "@", // shift
+       "<<", // shift
        "&&",
        "||",
        "^^",

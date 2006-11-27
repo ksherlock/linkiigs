@@ -40,7 +40,7 @@ public class OMF_Segment {
     protected String fSegname;
     
     /** Creates a new instance of OMF */
-    public OMF_Segment(FileInputStream io) {
+    public OMF_Segment(InputStream io) {
     	
         this();
 
@@ -173,11 +173,17 @@ public class OMF_Segment {
         			offset++;
         		}
         		else i = fLablen;
-        		tmp = new byte[i];
-        		io.read(tmp);
-        		offset += i;
-        		fSegname = new String(tmp);
-        		
+                if (i == 0)
+                {
+                    fSegname = "";
+                }
+                else
+                {
+                    tmp = new byte[i];
+                    io.read(tmp);
+                    offset += i;
+                    fSegname = new String(tmp);
+                }
         		// read the actual data....
         		if (dispdata > offset)
         		{
@@ -278,6 +284,18 @@ public class OMF_Segment {
             {
             case OMF.OMF_EOF:
                 omf = new OMF_Eof();
+                // Apple's MakeLib seems to insert 4 bytes
+                // after the end of every segment.
+                /*
+                if (in.available() > 0)
+                {
+                    System.out.println("Segment " 
+                            + fSegname + " has " 
+                            + in.available()
+                            + " bytes after end");
+                }
+                */
+                done = true;
                 break;
                 
             case OMF.OMF_ALIGN:
@@ -356,6 +374,8 @@ public class OMF_Segment {
                 }
                 else
                 {
+                    System.out.println("Unknown opcode " 
+                            + op);  
                     fError = true;
                 }            
             }
