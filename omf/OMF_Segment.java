@@ -310,9 +310,17 @@ public class OMF_Segment {
                 omf = new OMF_Reloc(in);
                 break;
                 
+            case OMF.OMF_CRELOC:
+                omf = new OMF_CReloc(in);
+                break;                
+                
             case OMF.OMF_INTERSEG:
                 omf = new OMF_Interseg(in);
                 break;
+                
+            case OMF.OMF_CINTERSEG:
+                omf = new OMF_CInterseg(in);
+                break;                
                 
             case OMF.OMF_STRONG:
                 omf = new OMF_Strong(in);
@@ -359,9 +367,6 @@ public class OMF_Segment {
                 omf = new OMF_Entry(in);
                 break;
                 
-            case OMF.OMF_CRELOC:
-                omf = new OMF_CReloc(in);
-                break;
                 
             case OMF.OMF_SUPER:
                 omf = new OMF_Super(in);

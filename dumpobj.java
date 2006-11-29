@@ -1,5 +1,6 @@
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 
 import omf.*;
@@ -12,6 +13,16 @@ import omf.*;
 public class dumpobj
 {
 
+    private static void usage()
+    {
+        System.out.println("dumpobj v 0.1");
+        System.out.println("usage: dumpobj [options] file [segments]");
+        
+        System.out.println("options:");
+        System.out.println("\t-H             dump headers only");
+        System.out.println("\t-h             help");
+        System.out.println("if [segments] is blank then all segments will be dumped.");
+    }
     /**
      * @param args
      */
@@ -19,39 +30,54 @@ public class dumpobj
     {    
        
        boolean fHeaderOnly = false;
-       GetOpt go = new GetOpt(args, "h");
+       GetOpt go = new GetOpt(args, "hH");
+       
+       HashSet<String> fSegments = new HashSet<String>();
+       
        int c;
        
        while ((c = go.Next()) != -1)
        {
            switch (c)
            {
-           case 'h':
+           case 'H':
                fHeaderOnly = true;
                break;
+               
+           case 'h':
+           case '?':
+               usage();
+               return;
            }
        }
        
        args = go.CommandLine();
-           
-       for (int i = 0; i < args.length; i++)
+      
+       if (args.length < 1) usage();
+       else
        {
-           File f = new File(args[i]);
+           File f = new File(args[0]);
+           for (int i = 1; i < args.length; i++)
+               fSegments.add(args[i].toUpperCase());
 
            ArrayList<OMF_Segment> segments = OMF.LoadFile(f);
            if (segments == null)
            {
-               System.err.printf("Invalid OMF File: %1$s\n", args[i]);
-               continue;
+               System.err.printf("Invalid OMF File: %1$s\n", args[0]);
+               return;
            }
            for (Iterator<OMF_Segment> iter = segments.iterator(); iter.hasNext(); )
            {
                OMF_Segment segment = iter.next();
+               
+               if ((fSegments.size() > 0) 
+                       && (!fSegments.contains(segment.SegmentName().toUpperCase())))
+                       continue;
+               
                dumpheader(segment);
                if (!fHeaderOnly) dumpbody(segment);
-           }
+           }   
        }
-
     }
     
     
@@ -84,7 +110,7 @@ public class dumpobj
     {
         StringBuffer buff = new StringBuffer();
         
-        if (kind < 0 || kind > 12)
+        if (kind < 0 || kind > 0x12)
             buff.append("???");
         else
             buff.append(SegKinds[kind]);
@@ -243,18 +269,18 @@ public class dumpobj
                 int opcode = n.Opcode();
                 if (opcode == OMF_Expression.EXPR_REL)
                 {
-                    System.out.printf("*+%1$04x", value);  
+                    System.out.printf("*+$%1$04x", value);  
                 }
                 else if (opcode == OMF_Expression.EXPR_ABS)
                 {
-                    System.out.printf("%1$04x", value);
+                    System.out.printf("$%1$04x", value);
                 }
                 else System.out.print("?");
             }
             else if (o instanceof OMF_Label)
             {
                 OMF_Label lab = (OMF_Label)o;
-                // amy be weak, label, len, type, or count .. should distinguish them.
+                // may be weak, label, len, type, or count .. should distinguish them.
                 System.out.print(lab.toString());
                 
             }
@@ -357,5 +383,5 @@ public class dumpobj
        "|",
        "^",
        "!"
-    };
+    };    
 }
