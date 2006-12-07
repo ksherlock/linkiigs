@@ -210,6 +210,12 @@ public class dumpobj
                     dumpexpr(eq.Expression());
                 }
                 break;
+            case OMF.OMF_GLOBAL:
+            case OMF.OMF_LOCAL:
+
+                System.out.printf("\t%1$s", op.toString());
+                break;
+
                 
             }
     
