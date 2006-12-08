@@ -1,6 +1,5 @@
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 
 import omf.OMF_Eof;
 import omf.OMF_Segment;
@@ -39,11 +38,9 @@ public class makedirect
     
     private static int ParseInt(String s)
     {
-        int i;
         int c;
         if (s == null || s.length() == 0) return 0;
         
-        i = 0;
         int base = 10;
         c = s.charAt(0);
         if (c == '$')
