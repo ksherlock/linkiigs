@@ -413,7 +413,7 @@ public class OMF_Segment {
         
         if (fSegname.length() == 0) fSegname = "          ";
         if (fLoadname.length() == 0) fLoadname = "          ";
-        this.fLength = length;
+        this.fLength = length + this.fResspace;
         offset = 0x2c + 10;
         if (fLablen == 0)
         {
@@ -539,7 +539,10 @@ public class OMF_Segment {
     {
         return fResspace;
     }
-
+    public void SetReservedSpace(int space)
+    {
+        fResspace = space;
+    }
     
     public void SetSegmentNumber(int num)
     {
