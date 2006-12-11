@@ -18,7 +18,7 @@ import omf.OMF_Segment;
  * makelib
  *  manage OMF library
  * 
- * makelib [options] librarry file
+ * makelib [options] library file
  * -a objfile : add to library (creating if necessary)
  * -d objfile : delete from library
  * -x objfile : extract from library 

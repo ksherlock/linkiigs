@@ -143,6 +143,7 @@ public class dumpobj
         int pc = 0;
         for(Iterator<OMF_Opcode> iter = seg.Opcodes(); iter.hasNext(); )
         {
+            int size;
             OMF_Opcode op = iter.next();
             int opcode = op.Opcode();
             String name;
@@ -158,13 +159,15 @@ public class dumpobj
                 }
                 
             }
-            System.out.printf("%1$08x:  %2$-10s($%3$02x)", pc, name, opcode);
+            
+            size = op.CodeSize();
+            System.out.printf("%1$08x:  %2$-10s($%3$02x)\t$%4$04x", pc, name, opcode, size);
             
             
             switch (op.Opcode())
             {
             case OMF.OMF_LCONST:
-                System.out.printf("\t$%1$04x", op.CodeSize());
+                //System.out.printf("\t$%1$04x", op.CodeSize());
                 dumphex( ((OMF_Const)op).Data(), op.CodeSize());
                 break;
                 
@@ -220,7 +223,7 @@ public class dumpobj
             }
     
             System.out.println();
-            pc += op.CodeSize();
+            pc += size;
         }
         
         System.out.println();
@@ -373,12 +376,12 @@ public class dumpobj
        "*",
        "/",
        "%",
-       "-",
-       "<<", // shift
-       "&&",
-       "||",
-       "^^",
-       "!!",
+       "(-)",   // uminus
+       "<<",    // shift
+       "and",
+       "or",
+       "eor",
+       "not",
        "<=",
        ">=",
        "<>",
