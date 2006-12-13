@@ -20,6 +20,7 @@ public class dumpobj
         
         System.out.println("options:");
         System.out.println("\t-H             dump headers only");
+        System.out.println("\t-D             don't do hexdump");
         System.out.println("\t-h             help");
         System.out.println("if [segments] is blank then all segments will be dumped.");
     }
@@ -30,7 +31,8 @@ public class dumpobj
     {    
        
        boolean fHeaderOnly = false;
-       GetOpt go = new GetOpt(args, "hH");
+       boolean fHexDump = true;
+       GetOpt go = new GetOpt(args, "DhH");
        
        HashSet<String> fSegments = new HashSet<String>();
        
@@ -42,6 +44,9 @@ public class dumpobj
            {
            case 'H':
                fHeaderOnly = true;
+               break;
+           case 'D':
+               fHexDump = false;
                break;
                
            case 'h':
@@ -75,7 +80,7 @@ public class dumpobj
                        continue;
                
                dumpheader(segment);
-               if (!fHeaderOnly) dumpbody(segment);
+               if (!fHeaderOnly) dumpbody(segment, fHexDump);
            }   
        }
     }
@@ -100,7 +105,8 @@ public class dumpobj
         System.out.printf("Number sex:     $%1$02x\n", seg.NumberSex());
         System.out.printf("Segment number: $%1$04x\n", seg.SegmentNumber());
         System.out.printf("Segment entry:  $%1$08x\n", seg.Entry());
-        System.out.printf("Load name:      %1$s\n", seg.LoadName());
+        System.out.printf("Load name:      %1$s\n", 
+                seg.LoadName().replace((char)0x00, ' '));
         System.out.printf("Segment name:   %1$s\n", seg.SegmentName());
         
         System.out.println();       
@@ -138,7 +144,7 @@ public class dumpobj
         
         return buff.toString();
     }
-    static void dumpbody(OMF_Segment seg)
+    static void dumpbody(OMF_Segment seg, boolean hexdump)
     {
         int pc = 0;
         for(Iterator<OMF_Opcode> iter = seg.Opcodes(); iter.hasNext(); )
@@ -167,8 +173,7 @@ public class dumpobj
             switch (op.Opcode())
             {
             case OMF.OMF_LCONST:
-                //System.out.printf("\t$%1$04x", op.CodeSize());
-                dumphex( ((OMF_Const)op).Data(), op.CodeSize());
+                if (hexdump) dumphex( ((OMF_Const)op).Data(), op.CodeSize());
                 break;
                 
             case OMF.OMF_ENTRY:
@@ -183,8 +188,17 @@ public class dumpobj
             case OMF.OMF_SUPER:
                 {
                     OMF_Super s = (OMF_Super)op;
-                    System.out.printf("\t$%1$04x", s.Type());
-                    dumphex(s.Data(), s.Length() - 1);
+                    String tname;
+                    int type = s.Type();
+                    
+                    if (type == 0) tname = "RELOC2";
+                    else if (type == 1) tname = "RELOC3";
+                    else if (type > 1 && type < 38) 
+                        tname = "INTERSEG" + (type - 1);
+                    else tname = "??? (" + type + ")";
+                    
+                    System.out.printf("\t%1s", tname);
+                    if (hexdump) dumphex(s.Data(), s.Length() - 1);
                 }
                 break;
                 
