@@ -1,14 +1,9 @@
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.ListIterator;
 
-import omf.OMF;
-import omf.OMF_Const;
-import omf.OMF_Eof;
-import omf.OMF_Opcode;
 import omf.OMF_Segment;
 
 /*
@@ -19,9 +14,9 @@ import omf.OMF_Segment;
  *  manage OMF library
  * 
  * makelib [options] library file
- * -a objfile : add to library (creating if necessary)
- * -d objfile : delete from library
- * -x objfile : extract from library 
+ * -a : add to library (creating if necessary)
+ * -d : delete from library
+ * -x : extract from library 
  * -t : list files (short listing)
  * -v : list files (long listing)
  * -i : integrity check
@@ -29,60 +24,63 @@ import omf.OMF_Segment;
 
 public class makelib
 {
+    static final int FLAG_A = 1;
+    static final int FLAG_D = 2;
+    //static final int FLAG_F = 4;
+    static final int FLAG_I = 8;
+    static final int FLAG_T = 16;
+    static final int FLAG_X = 32;
+    static final int FLAG_DX = 64;
 
     private static void usage()
     {
         System.out.println("makelib v 0.1");
-        System.out.println("usage: makelib [options] library");
+        System.out.println("usage: makelib [options] library [file ...]");
         System.out.println("options:");
 
-        System.out.println("\t-a objfile     add file to library (creating library, if necessary)");
-        System.out.println("\t-d objfile     delete file from library");
-        System.out.println("\t-x objfile     extract file from library");
+        System.out.println("\t-a             add files to library (creating library, if necessary)");
+        System.out.println("\t-d             delete files from library");
+        System.out.println("\t-x             extract files from library");
         System.out.println("\t-i             test library integrity");
-        System.out.println("\t-f             list library files");
+        //System.out.println("\t-f             list library files");
         System.out.println("\t-t             list library contents");
         System.out.println("\t-v             be verbose");
         System.out.println("\t-h             help");        
     }
     
-    private static void ListLib(File file, boolean verbose)
-    {
-        
-        Library lib;
-        lib = new Library(file);
-       
+    private static void ListLib(OMF_Library lib, boolean verbose)
+    {      
         System.out.println("Name                           File                 Size     Private");
         System.out.println("------------------------------ -------------------- -------- -------");
         
-        Iterator <Library.SymbolRec> iter;
+        Iterator <OMF_Library.SymbolRec> iter;
         iter = lib.Symbols();
         for (; iter.hasNext(); )
         {
-            Library.SymbolRec s = iter.next();
-            System.out.printf("%1$-30s %2$-20s 0x%3$06x %4$c\n",
+            OMF_Library.SymbolRec s = iter.next();
+            System.out.printf("%1$-30s %2$-20s 0x%3$06x %4$s\n",
                     s.SymbolName,
                     s.FileName,
                     s.Segment.Length(),
-                    s.Private ? 'x' : ' '
+                    s.Private ? "true" : ""
                     );                 
         }
     }
-    private static void CheckLib(File file, boolean verbose)
-    {
-        
-        Library lib;
-        lib = new Library(file);
-        ArrayList<OMF_Segment>segments =  OMF.LoadFile(file);
-        
-        
+    
+    /*
+     * make a list of symbols in the library, then open
+     * the file as an OMF file and verify they correspond.
+     * 
+     */
+    private static void CheckLib(OMF_Library lib, boolean verbose)
+    {        
         /*
          * go through the library and verify the symbol names
          * and private flag are correct.
          * 
          * Also, this verifies no public symbols have the same name.
          */
-        
+        /*
         HashSet<String> set = new HashSet<String>();
         
         Iterator <Library.SymbolRec> iter;
@@ -112,13 +110,14 @@ public class makelib
                else set.add(s.SymbolName);
             }
         }
-        
+        */
         
         
         
         /*
          * verify no files have the same name.
          */
+        /*
         set.clear();
         Iterator<Library.FileRec> fiter = lib.Files();
         for ( ; fiter.hasNext(); )
@@ -132,6 +131,7 @@ public class makelib
             else
                 set.add(f.FileName);
         }
+        */
         
         /*
          * TODO -  Now we need to go through the OMF file 
@@ -140,57 +140,81 @@ public class makelib
 
     }
     
-    private static boolean ExtractFile(Library lib, String filename)
+    private static boolean ExtractLib(OMF_Library lib, String[] args, boolean verbose)
     {
-        Iterator<Library.FileRec> iter;
+        ArrayList<OMF_Segment> segs;
         
-        iter = lib.Files();
-        
-        for (; iter.hasNext(); )
+        for (String s : args)
         {
-            Library.FileRec f = iter.next();
-            if (f == null) continue;
-            
-            if (f.FileName.compareToIgnoreCase(filename) == 0)
+            if (verbose) System.out.printf("makelib: extracting %1$s.\n", s);
+            segs = lib.GetSegments(s);
+            if (segs == null)
             {
-                FileOutputStream io;
+                System.err.printf("makelib: %1$s not found.", s);
+            }
+            else
+            {
+                int segnum = 1;
+                FileOutputStream f;
                 try
                 {
-                    io = new FileOutputStream(filename);
+                    f = new FileOutputStream(s);
+                    for (OMF_Segment seg : segs)
+                    {
+                        seg.SetSegmentNumber(segnum++);
+                        if (!seg.Save(f))
+                        {
+                            System.err.printf("makelib: error extracting %1$s:%2$s.", 
+                                    s, seg.SegmentName());; 
+                            return false;
+                        }
+                    }
                 }
-                catch (Exception e)
+                catch (FileNotFoundException e)
                 {
+                    // TODO -- should also signal not to delete if FLAG_DX
+                    System.err.printf("makelib: unable to extract %1$s.", s); 
                     return false;
                 }
-                for (Library.SymbolRec s : f.Symbols)
-                {
-                    OMF_Segment omf;
-                    omf = s.Segment;
-                    omf.Save(io);
-                }
+            }
+        }
+        return true;
+    }
+    private static void DeleteLib(OMF_Library lib, String[] args, boolean verbose)
+    {
+
+        for (String s : args)
+        {
+            if (verbose) System.out.printf("makelib: deleting %1$s.\n", s);
+            if (!lib.RemoveFile(s))
+            {
+                System.err.printf("makelib: %1$s not found.", s);
+            }
+        }           
+    } 
+    private static void AddLib(OMF_Library lib, String[] args, boolean verbose)
+    {
+        ArrayList<String> symbols = new ArrayList<String>();
+        for (String s: args)
+        {
+            if (verbose)
+            {
+                System.out.printf("makelib: adding %1$s.\n", s);
+            }
+            int status = lib.AddFile(s,symbols);
+            switch(status)
+            {
+            case OMF_Library.E_OK:
+                break;
+            case OMF_Library.E_DUPLICATE_FILE:
+            case OMF_Library.E_DUPLICATE_SYMBOL:
+            case OMF_Library.E_NOFILE:
+            case OMF_Library.E_NOTOBJECT:
+            case OMF_Library.E_NOTOMF:
+            
             }
             
         }
-        
-        return false;
-    }
-    
-    // check for command line option errors.
-    private static boolean CheckArgs(int a, int d, int x, boolean t, boolean i)
-    {
-        // if both are set, we have a conflict
-        if (t && i) return false;
-        if (a > 0 || d > 0 || x > 0)
-        {
-            // if either are set, we have a conflict
-            if (i || t) return false;
-            return true;
-        }
-        // i or t must be true since no a/d/x args.
-        if (i == false && t == false)
-            return false;
-        // 10-4!
-        return true;
     }
     
     
@@ -200,15 +224,11 @@ public class makelib
      */
     public static void main(String[] args)
     {
-        ArrayList<String> aList = new ArrayList<String>();
-        ArrayList<String> dList = new ArrayList<String>();
-        ArrayList<String> xList = new ArrayList<String>();
+        boolean fVerbose = false;
+        int flags = 0;
+
         
-        boolean iFlag = false;
-        boolean tFlag = false;
-        boolean vFlag = false;
-        
-        GetOpt go = new GetOpt(args, "a:d:x:tivh");
+        GetOpt go = new GetOpt(args, "adxtivh");
         
         
         int c;
@@ -217,25 +237,26 @@ public class makelib
             switch(c)
             {
             case 'a':
-                aList.add(go.Argument());
+                flags |= FLAG_A;
                 break;
             case 'd':
-                dList.add(go.Argument());
+                flags |= FLAG_D;
                 break;
             case 'x':
-                xList.add(go.Argument());
+                flags |= FLAG_X;
                 break;
             case 'i':
-                iFlag = true;
+                flags |= FLAG_I;
                 break;
             case 't':
-                tFlag = true;
+                flags |= FLAG_T;
                 break;
             case 'v':
-                vFlag = true;
+                fVerbose = true;
                 break;
             case 'h':
             case '?':
+            default:
                 usage();
                 return;
                 //break;
@@ -245,35 +266,95 @@ public class makelib
         //
         args = go.CommandLine();
         go = null;
-
-        // if aList then library may be non-existant,
-        // otherwise, it must exist.
-        File f = new File(args[0]);
-        if (!f.exists() && aList.size() == 0)
-        {
-            System.out.println("No such file: " + args[0]);
-            return ;
-        }
+        String[] files = null;
+        File f = null;
         
-        if (args.length != 1 || !CheckArgs(aList.size(), dList.size(), xList.size(), 
-                tFlag, iFlag))
+        /*
+         * 1 (and only 1) bit of flags should be set.
+         * the only exception is DX are both allowed to extract
+         * and delete. 
+         */
+        if (flags == (FLAG_D | FLAG_X))
+                flags = FLAG_DX;
+        
+        if (args.length == 0 || Integer.bitCount(flags) != 1)
         {
             usage();
             return;
         }
+        f = new File(args[0]);
+        
+        // a d x flags require multi arguments, others do not.
+        if ((flags & (FLAG_A | FLAG_D | FLAG_X | FLAG_DX)) == 0)
+        {
+            if (args.length != 1)
+            {
+                usage();
+                return;
+            }            
+        }
+        else
+        {
+            if (args.length == 1)
+            {
+                usage();
+                return;
+            }
+            
+            files = new String[args.length - 1];
+            for (int i = 1; i < args.length; i++)
+                files[i - 1] = args[i];
+            
+        }
+        
+        // TODO if flag != FLAG_A, verify file exists, open as lib?
+        OMF_Library lib = OMF_Library.LoadFile(f);
+        if (lib == null)
+        {
+            if (flags == FLAG_A) lib = new OMF_Library();
+            else
+            {
+                System.err.printf("makelib: %1$s is not a valid library file.",
+                        f.getName());
+                return;
+            }
+        }
+        
+        
+        
+        switch(flags)
+        {
+        case FLAG_T:
+            ListLib(lib, fVerbose);
+            break;
+        case FLAG_I:
+            CheckLib(lib, fVerbose);
+            break;
+        case FLAG_X:
+            ExtractLib(lib, files, fVerbose);
+            break;
+        case FLAG_DX:
+            if (!ExtractLib(lib, files, fVerbose))
+                return;
+        case FLAG_D:
+            DeleteLib(lib, files, fVerbose);
+            if (lib.IsDirty())
+                lib.Save(f);
+            break;
+        case FLAG_A:
+            AddLib(lib, files, fVerbose);
+            if (lib.IsDirty())
+                lib.Save(f);
+            break;
+            
+        }
+        
 
-        if (tFlag)
-        {
-           ListLib(f, vFlag);
-            return;
-        }
-        if (iFlag)
-        {
-            CheckLib(f, vFlag);
-            return;
-        }
-        // TODO -- should I use +/-/^?
         
     }
 
+    
+    
+    
+    
 }

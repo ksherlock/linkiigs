@@ -1,4 +1,5 @@
 import omf.*;
+import omf.io.__OMF_Writer;
 
 /*
  * Created on Feb 16, 2006
@@ -134,6 +135,38 @@ public class OMF_Data extends OMF_Const
             }            
         }
     }
+    
+    public void AppendString(String s, int lablen)
+    {
+        int length = s.length();
+        byte[] data = s.getBytes();
+        if (lablen == 0)
+        {
+            ResizeBy(1 + length);
+            fData[fLength++] = (byte)length;
+            for (int i = 0; i < length; i++)
+                fData[fLength++] = data[i];
+        }
+        else
+        {
+            ResizeBy(lablen);
+            int i;
+            for (i = 0; i < length; i++)
+            {
+                if (i == lablen) break;
+                fData[fLength++] = data[i];
+            }
+            for (; i < lablen; i++)
+                fData[fLength] = ' ';
+        }   
+    }
+    
+    public void AppendInt8(int num, int numsex)
+    {
+        ResizeBy(1);
+        fData[fLength++] = (byte)(num & 0xff);
+    }
+    
     public void AppendInt16(int num, int numsex)
     {
         ResizeBy(2);
@@ -148,7 +181,22 @@ public class OMF_Data extends OMF_Const
             fData[fLength++] = (byte)(num & 0xff);
         }
     }
-
+    public void AppendInt24(int num, int numsex)
+    {
+        ResizeBy(3);
+        if (numsex == 0)
+        {
+            fData[fLength++] = (byte)(num & 0xff);
+            fData[fLength++] = (byte)((num >> 8) & 0xff);
+            fData[fLength++] = (byte)((num >> 16) & 0xff);
+        }
+        else
+        {    
+            fData[fLength++] = (byte)((num >> 16) & 0xff);
+            fData[fLength++] = (byte)((num >> 8) & 0xff); 
+            fData[fLength++] = (byte)(num & 0xff);
+        }
+    }
     public void AppendInt32(int num, int numsex)
     {
         ResizeBy(4);
